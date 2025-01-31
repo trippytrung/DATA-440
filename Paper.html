@@ -1,0 +1,184 @@
+
+<!DOCTYPE html>
+<html>
+
+<script type="text/javascript" async
+  src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/MathJax.js?config=TeX-MML-AM_CHTML">
+</script>
+
+
+<!-- From here: https://alt-571910f3bd595.blackboard.com/bbcswebdav/pid-2488871-dt-content-rid-35025160_1/courses/DATA441-01-S24/Structure%20for%20the%20Capstone%20Project.html?one_hash=9E98C5E068AD11CA1A9FABEA8B342AE5&f_hash=247A82DCB91F27D68CE2D7902B9836FD
+   -->
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Predicting Danceability</title>
+  <link rel="stylesheet" href="https://stackedit.io/style.css" />
+</head>
+
+<body class="stackedit">
+  <div class="stackedit__html"><h1 id="good-data---good-thesis----a-capstone-project">Using Machine Learning to Explore What Makes Songs “Danceable”</h1>
+<h2 id="abstract">Abstract</h2>
+<p>This project explores the factors that contribute to a song’s danceability using a dataset of popular tracks from Spotify. By performing exploratory data analysis and applying machine learning techniques, we aim to identify key predictors of danceability, such as energy and valence. The project includes the development of predictive models designed to forecast the danceability of new songs. The findings provide valuable insights for artists, producers, and record labels seeking to understand the elements that make songs more likely to be popular in dance settings. The code and dataset used for the analysis can be found here: https://github.com/TrungNguyen02/DATA-440/blob/main/Code_and_Data.ipynb</p>
+<h2 id="introduction-comprehensive">Introduction</h2>
+<p>What makes people dance to a song? Some songs seem to have an innate quality that gets people moving, while others may not evoke the same response, even with similar beats or tempos. This phenomenon of danceability is a key factor in the popularity of songs at parties, clubs, and social events where dancing is central. Understanding the underlying factors that contribute to a song’s ability to make people dance is invaluable for artists, producers, and record labels. By identifying these factors, they can produce music that appeals to broader audiences and increases the chances of a track being played in venues where people want to dance.</p>
+<p>In this capstone project, we explore Spotify’s dataset of the most popular songs to uncover trends, patterns, and potential predictors of a song's danceability. We will analyze the relationship between various features—such as energy and valence—and how they help predict how likely a song is to be considered “danceable.” Through a combination of exploratory data analysis and machine learning techniques, we aim to gain insights that could help predict the danceability of new and upcoming songs. Additionally, we will develop predictive models that can assess the danceability of tracks based on their characteristics.</p>     
+<h2 id="description-of-data">Description of Data</h2>
+<p>This dataset contains a comprehensive list of the 943 most famous songs of 2023 as listed on Spotify. The dataset offers a wealth of features beyond what is typically available in similar datasets. It provides insights into each song's attributes, popularity, and presence on various music platforms. The dataset includes information such as track name, artist(s) name, release date, Spotify playlists and charts, streaming statistics, Apple Music presence, Deezer presence, Shazam charts, and various audio features, including “danceability.” The data was sourced using Spotify’s API which they allow anyone to use for free, and lots of these metrics are Spotify’s own internal metrics that they use for their song recommendation algorithms.</p>
+
+<p>There are many features available, but I think the only relevant ones are listed below as they are the only ones that determine how a song sounds (the rest are irrelevant to us):</p>
+
+<p><strong>Dependent Variable:</strong></p>
+<ul>
+  <li><strong>danceability_%</strong>: percentage indicating how suitable the song is for dancing</li>
+</ul>
+
+<p><strong>Independent Variables:</strong></p>
+<ul>
+  <li><strong>bpm</strong>: beats per minute, a measure of song tempo</li>
+  <li><strong>valence_%</strong>: positivity of the song’s musical content</li>
+  <li><strong>energy_%</strong>: perceived energy level of the song</li>
+  <li><strong>acousticness_%</strong>: amount of acoustic sound in the song</li>
+  <li><strong>speechiness_%</strong>: amount of spoken words in the song</li>
+  <li><strong>liveness_%</strong>: presence of live performance elements</li>
+  <li><strong>instrumentalness_%</strong>: amount of instrumental content in the song</li>
+</ul>
+
+<p>I only used these variables for this analysis.</p>
+
+<h2 id="methods">Methods</h2>
+<h3 id="pre-processing-methods">Pre-processing methods</h3>
+<p>The dataset I was working with was very clean so there was not much I needed to do to clean the data. Once I picked which of the features I was going to use to predict danceability (I selected 7), I checked to see if there was any sign of multicollinearity among the variables. Fortunately, there was not.</p>
+<figure>
+<img src='heat_map.png' alt='heat_map' />
+<figcaption>The heat map has very little red which indicates that there is little to no multicollinearity among the independent variables.
+</figcaption>
+</figure>
+     
+
+
+
+
+     
+<h3 id="the-analyticalmachine-learning-methods">The analytical/machine learning methods</h3>
+
+<p>To begin the analysis, I created a PyTorch class that implements three methods.</p>
+
+<p><strong>1. SCAD Regularization (Smoothly Clipped Absolute Deviation)</strong></p>
+
+<p>SCAD is a form of penalized regression that is specifically designed for variable selection. The method imposes a penalty on the coefficients of a linear model to shrink them, encouraging sparsity, and ultimately selecting a subset of important predictors.</p>
+
+<p>The penalty function used in SCAD is piecewise and non-linear, which is designed to avoid over-shrinking important coefficients, a limitation in simpler L1 penalties like Lasso. The SCAD penalty function can be expressed as:</p>
+
+$$ P_{\lambda}( \boldsymbol{\beta}) = \sum_{j=1}^p \left( \lambda | \beta_j| \mathbf{1}(|\beta_j| \leq \lambda) + \frac{ \left( \lambda | \beta_j| - \beta_j^2 \right)^2 }{ 2(a-1)\lambda } \mathbf{1}(|\beta_j| > \lambda) \right) $$
+
+<p>where:</p>
+<ul>
+  <li>\(\lambda\) is the tuning parameter that controls the strength of the penalty.</li>
+  <li>\(\beta_j\) are the coefficients of the linear model.</li>
+  <li>\(a\) is a parameter that typically takes values between 3 and 4, controlling the smoothness of the penalty.</li>
+</ul>
+
+<p>The idea behind SCAD is that it penalizes small coefficients (leading to sparsity), but the penalty is not as harsh for large coefficients. When \(\beta_j\) is small, the penalty behaves like Lasso, but when \(\beta_j\) is large, it becomes much less aggressive, allowing larger coefficients to stay in the model. This adaptive feature helps improve performance and variable selection accuracy.</p>
+
+
+
+<p><strong>2. ElasticNet Regularization</strong></p>
+
+<p>ElasticNet is another regularization method that combines \( L1 \) (Lasso) and \( L2 \) (Ridge) penalties. It is particularly useful when there are highly correlated predictors or when you suspect that a mixture of \( L1 \) and \( L2 \) regularization will help with model selection and stability. The objective function for ElasticNet is:</p>
+
+$$ \min_{\boldsymbol{\beta}} \left( \frac{1}{2n} \| \mathbf{y} - \mathbf{X} \boldsymbol{\beta} \|_2^2 + \lambda_1 \|\boldsymbol{\beta}\|_1 + \frac{\lambda_2}{2} \|\boldsymbol{\beta}\|_2^2 \right) $$
+
+<p>where:</p>
+<ul>
+  <li>\( \| \mathbf{y} - \mathbf{X} \boldsymbol{\beta} \|_2^2 \) is the residual sum of squares (i.e., the least squares loss).</li>
+  <li>\( \| \boldsymbol{\beta} \|_1 \) is the L1-norm (sum of the absolute values of the coefficients), promoting sparsity.</li>
+  <li>\( \| \boldsymbol{\beta} \|_2^2 \) is the L2-norm (sum of the squares of the coefficients), promoting small coefficients but not forcing them to zero.</li>
+  <li>\( \lambda_1 \) and \( \lambda_2 \) are the regularization parameters for L1 and L2 penalties, respectively.</li>
+</ul>
+
+<p>ElasticNet strikes a balance between Lasso and Ridge regression. It tends to perform well in situations where Lasso would struggle due to multicollinearity (high correlation between predictors). The method allows for a combination of coefficient shrinkage (from Ridge) and variable selection (from Lasso).</p>
+
+<p><strong>3. SqrtLasso Regularization</strong></p>
+
+<p>SqrtLasso is a variation of Lasso regression where the L1 penalty is modified by applying the square root to the absolute value of the coefficients. The objective function for SqrtLasso is:</p>
+
+$$ \min_{\boldsymbol{\beta}} \left( \frac{1}{2n} \| \mathbf{y} - \mathbf{X} \boldsymbol{\beta} \|_2^2 + \lambda \sum_{j=1}^p \sqrt{|\beta_j|} \right) $$
+
+<p>where:</p>
+<ul>
+  <li>\( \lambda \) is the regularization parameter controlling the strength of the penalty.</li>
+  <li>The \( \sqrt{|\beta_j|} \) of the coefficients makes the shrinkage less aggressive, particularly for coefficients that are larger. This can make SqrtLasso more appropriate in situations where you don’t want to completely shrink or eliminate certain coefficients, but still want to encourage sparsity. It’s a middle ground between standard Lasso and Ridge regression, offering a softer penalty.</li>
+</ul>
+
+<p>Since our data has low correlation, I proceeded by generating 200 datasets where the input features have a low correlation structure (I used 0.2). I then applied ElasticNet, SqrtLasso, and SCAD to check which method produces the best approximation of an ideal solution, such as a "betastar" that I designed with a sparsity pattern.</p>
+
+
+
+    
+
+     
+<h3 id="the-actual-application-of-the-methods-and-the-validation-procedure">The actual application of the methods and the validation procedure</h3>
+<p>After evaluating the performance of the three regularization methods, SqrtLasso produced the most accurate solution. The method was effective in identifying a sparse set of important predictors, while avoiding over-shrinking relevant features. I proceeded by applying SqrtLasso to the dataset to perform variable selection based on the importance of the features.</p>
+
+<p>The first step in this process was to train the SqrtLasso model using k-fold cross-validation. Cross-validation is a robust technique that allows us to estimate the model's performance by dividing the dataset into \(k\) subsets (or "folds"). The model is then trained on \(k-1\) folds and tested on the remaining fold, repeating this process until each fold has been used as the test set. The k-fold cross-validation guarantees that the model’s performance is generalizable and not overly reliant on any specific partition of the data.</p>
+
+<p>With the trained model, I examined the coefficients of the independent variables. In SqrtLasso, non-zero coefficients indicate that the corresponding features contribute significantly to the model's prediction, while near-zero coefficients signal that those features were effectively excluded from the model. By selecting only the features with non-zero coefficients (which ended up being all them), I was able to use the most relevant variables that help us determine a song’s danceability.</p>
+
+<h2 id="discussion-and-inferences">Discussion and inferences</h2>
+
+
+<p>My model said that all the features were useful in predicting danceability. It gave the following coefficients:</p>
+
+<figure>
+<img src='coefficients.png' alt='coefficients' />
+<figcaption>Coefficients of the features.
+</figcaption>
+</figure>
+
+<p>Testing the model, I got the following results:</p>
+
+<figure>
+<img src='results.png' alt='results' />
+<figcaption>Coefficients of the features.
+</figcaption>
+</figure>
+
+<p>The results of our model are pretty accurate in estimating the danceability of songs. For example, for the song in row 22, the predicted danceability was 48.1717, which is very close to the actual danceability value of 48, with a small difference of just 0.1717. This suggests that the model is performing well for individual predictions, with the differences between predicted and actual values being relatively small.</p>
+
+<p>The average distance between predicted and actual danceability across all data points is 3.125, which is a measure of the overall model performance. The scale of danceability ranges from 0 to 100, so an average error of around 3.1 points is pretty reasonable. On average, the model is predicting within a few points of the true values, which may be acceptable in many practical scenarios, such as music recommendation systems or playlist curation.</p>
+
+<p>However, there are potential areas for improvement:</p>
+
+<ul>
+    <li><strong>Model Accuracy:</strong> While the model appears to predict well in certain instances, the average distance suggests that there may be cases where the predictions could be farther off. The model might be more accurate in predicting songs that are either highly danceable or not at all, but less precise in the middle ranges, or vice versa.</li>
+    <li><strong>Feature Selection:</strong> The model's accuracy could potentially be improved by refining the features used for prediction. Introducing interaction terms or exploring more complex models could help.</li>
+    <li><strong>Data Quality:</strong> The training data could also influence the model's performance. For example, making sure that the dataset is representative of various genres and styles of music might lead to more generalized results. Also, considering what was popular in previous years versus the present could add value to the prediction process.</li>
+</ul>
+
+<p><strong>Next Steps:</strong></p>
+
+<ul>
+    <li><strong>Model Refinement:</strong> Experiment with more advanced regression techniques or machine learning models such as Random Forests, Gradient Boosting Machines, or Neural Networks. These models could potentially capture more complex patterns in the data and improve the overall prediction accuracy.</li>
+    <li><strong>Evaluation on External Data:</strong> We could test the model on a completely separate dataset (Apple Music or Youtube Music) to evaluate its real-world applicability and check whether it maintains a similar level of accuracy on new, unseen songs.</li>
+</ul>
+
+<p>By incorporating these suggestions, the model could potentially provide even more accurate and insightful predictions, which could be valuable for artists and producers who are trying to predict the danceability of their future tracks.</p>
+
+
+
+
+    
+<h2 id="references">References</h2>
+<ol>
+<li>https://www.kaggle.com/datasets/nelgiriyewithana/top-spotify-songs-2023</li>
+</ol>
+</div>
+</body>
+
+</html>
+
+
+
+
+
